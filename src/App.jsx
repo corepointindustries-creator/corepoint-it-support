@@ -29,8 +29,6 @@ const ASSIGNED_TO = "IT Admin Support";
 const PAGE_SIZE = 10;
 const STATUS_OPTIONS = ["Opened", "Active", "Resolved"];
 
-function pad4unused() {} // reserved
-
 function formatDateOpened(date) {
   return date.toLocaleDateString("en-US", {
     year: "numeric",
@@ -53,11 +51,149 @@ function firstName(fullName) {
   return (fullName || "").split(" ")[0];
 }
 
-const STEPS = [
-  { key: "form", label: "Submit" },
+const FLOW_STEPS = [
+  { key: "new", label: "Submit" },
   { key: "capture", label: "Capture" },
   { key: "confirmation", label: "Confirmation" },
 ];
+
+function TicketTable({
+  tickets,
+  loading,
+  error,
+  filterCategory,
+  menuOpen,
+  onToggleMenu,
+  onSelectFilter,
+  pageIndex,
+  totalPages,
+  canGoPrev,
+  canGoNext,
+  onPrev,
+  onNext,
+  onOpenTicket,
+}) {
+  return (
+    <>
+      <div className="cpits-toolbar">
+        <button
+          type="button"
+          className="cpits-hamburger"
+          onClick={onToggleMenu}
+          aria-label="Filter tickets"
+        >
+          ☰
+        </button>
+        <span className="cpits-filter-label">
+          Showing: <strong>{filterCategory}</strong>
+        </span>
+
+        {menuOpen && (
+          <div className="cpits-menu">
+            {["All", "Incident", "Request"].map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                className={
+                  "cpits-menu-item" + (filterCategory === opt ? " active" : "")
+                }
+                onClick={() => onSelectFilter(opt)}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="cpits-table-wrap">
+        <table className="cpits-table">
+          <thead>
+            <tr>
+              <th>Number</th>
+              <th>Short Description</th>
+              <th>User</th>
+              <th>Category</th>
+              <th>Subcategory</th>
+              <th>Urgency</th>
+              <th>Date Opened</th>
+              <th>Ticket Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && (
+              <tr>
+                <td colSpan={8} className="cpits-empty-row">
+                  Loading tickets...
+                </td>
+              </tr>
+            )}
+            {!loading && error && (
+              <tr>
+                <td colSpan={8} className="cpits-empty-row">
+                  {error}
+                </td>
+              </tr>
+            )}
+            {!loading && !error && tickets.length === 0 && (
+              <tr>
+                <td colSpan={8} className="cpits-empty-row">
+                  No tickets to show.
+                </td>
+              </tr>
+            )}
+            {!loading &&
+              !error &&
+              tickets.map((t) => (
+                <tr key={t.id}>
+                  <td>
+                    <button
+                      type="button"
+                      className="cpits-ticket-link"
+                      onClick={() => onOpenTicket(t.id)}
+                    >
+                      {t.ticket_number}
+                    </button>
+                  </td>
+                  <td className="cpits-desc-cell">{t.short_description}</td>
+                  <td>{t.requester ? t.requester.full_name : ""}</td>
+                  <td>{t.category}</td>
+                  <td>{t.subcategory}</td>
+                  <td className={t.urgency === "High" ? "cpits-urgency-high" : "cpits-urgency-low"}>
+                    {t.urgency}
+                  </td>
+                  <td>
+                    {new Date(t.date_opened).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </td>
+                  <td>
+                    <span className={"cpits-pill cpits-pill-" + t.status.toLowerCase()}>
+                      {t.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="cpits-pagination">
+        <span>
+          Page {pageIndex + 1} of {totalPages}
+        </span>
+        <button type="button" className="cpits-page-btn" onClick={onPrev} disabled={!canGoPrev}>
+          ‹
+        </button>
+        <button type="button" className="cpits-page-btn" onClick={onNext} disabled={!canGoNext}>
+          ›
+        </button>
+      </div>
+    </>
+  );
+}
 
 export default function CorePointITSupport() {
   const [page, setPage] = useState("login");
@@ -66,6 +202,8 @@ export default function CorePointITSupport() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+
+  const [activeUserTab, setActiveUserTab] = useState("view"); // "new" | "view"
 
   const [category, setCategory] = useState("");
   const [urgency, setUrgency] = useState("");
@@ -78,7 +216,7 @@ export default function CorePointITSupport() {
   const [captureError, setCaptureError] = useState("");
   const [captureLoading, setCaptureLoading] = useState(false);
 
-  // Admin dashboard state
+  // Ticket list state (shared by admin dashboard and the user's View Ticket tab)
   const [ticketList, setTicketList] = useState([]);
   const [ticketListLoading, setTicketListLoading] = useState(false);
   const [ticketListError, setTicketListError] = useState("");
@@ -98,14 +236,19 @@ export default function CorePointITSupport() {
   const [itNoteSubmitting, setItNoteSubmitting] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
 
-  const stepIndex = STEPS.findIndex((s) => s.key === page);
+  const isAdminViewer = !!(loggedInUser && loggedInUser.is_it_admin);
+
+  const showingTicketList =
+    page === "dashboard" || (page === "home" && activeUserTab === "view");
+
+  const showingWideLayout = showingTicketList || page === "service";
 
   useEffect(() => {
-    if (page === "dashboard") {
+    if (showingTicketList) {
       fetchTickets();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageIndex, filterCategory]);
+  }, [page, activeUserTab, pageIndex, filterCategory]);
 
   async function fetchTickets() {
     setTicketListLoading(true);
@@ -122,6 +265,10 @@ export default function CorePointITSupport() {
 
     if (filterCategory !== "All") {
       query = query.eq("category", filterCategory);
+    }
+
+    if (!isAdminViewer && loggedInUser) {
+      query = query.eq("requester_id", loggedInUser.id);
     }
 
     const { data, count, error } = await query;
@@ -183,7 +330,8 @@ export default function CorePointITSupport() {
     setLoginLoading(false);
     setPageIndex(0);
     setFilterCategory("All");
-    setPage(profile.is_it_admin ? "dashboard" : "form");
+    setActiveUserTab("view");
+    setPage(profile.is_it_admin ? "dashboard" : "home");
   }
 
   async function handleLogout() {
@@ -203,6 +351,7 @@ export default function CorePointITSupport() {
     setTicketList([]);
     setSelectedTicket(null);
     setMenuOpen(false);
+    setActiveUserTab("view");
     setPage("login");
   }
 
@@ -270,7 +419,7 @@ export default function CorePointITSupport() {
     setPage("confirmation");
   }
 
-  function handleStartAnother() {
+  function resetTicketForm() {
     setCategory("");
     setUrgency("");
     setSubcategory("");
@@ -279,16 +428,34 @@ export default function CorePointITSupport() {
     setDateOpened(null);
     setFormError("");
     setCaptureError("");
-    setPage("form");
   }
 
-  function goToDashboard() {
+  function handleStartAnother() {
+    resetTicketForm();
+    setActiveUserTab("new");
+    setPage("home");
+  }
+
+  function handleViewMyTickets() {
+    resetTicketForm();
+    setPageIndex(0);
+    setFilterCategory("All");
+    setActiveUserTab("view");
+    setPage("home");
+  }
+
+  function goBackToList() {
     setSelectedTicket(null);
     setUserNotes([]);
     setItNotes([]);
     setNewUserNote("");
     setNewItNote("");
-    setPage("dashboard");
+    if (isAdminViewer) {
+      setPage("dashboard");
+    } else {
+      setActiveUserTab("view");
+      setPage("home");
+    }
   }
 
   async function openTicket(ticketId) {
@@ -385,7 +552,14 @@ export default function CorePointITSupport() {
   const canGoPrev = pageIndex > 0;
   const canGoNext = (pageIndex + 1) * PAGE_SIZE < totalCount;
 
-  const isAdminPage = page === "dashboard" || page === "service";
+  const flowStepIndex =
+    page === "home" && activeUserTab === "new"
+      ? 0
+      : page === "capture"
+      ? 1
+      : page === "confirmation"
+      ? 2
+      : -1;
 
   return (
     <div className="cpits-root">
@@ -507,6 +681,35 @@ export default function CorePointITSupport() {
           font-weight: 600;
           font-size: 14px;
           color: var(--blue-dark);
+        }
+
+        .cpits-tabs {
+          display: flex;
+          gap: 4px;
+          margin-bottom: 18px;
+          border-bottom: 1px solid var(--border);
+        }
+
+        .cpits-tab {
+          font-family: 'IBM Plex Sans', sans-serif;
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--slate);
+          background: none;
+          border: none;
+          padding: 10px 16px;
+          cursor: pointer;
+          border-bottom: 2px solid transparent;
+          margin-bottom: -1px;
+        }
+
+        .cpits-tab:hover {
+          color: var(--ink);
+        }
+
+        .cpits-tab.active {
+          color: var(--blue-dark);
+          border-bottom-color: var(--blue);
         }
 
         .cpits-panel {
@@ -707,7 +910,15 @@ export default function CorePointITSupport() {
         .cpits-confirm-meta {
           font-size: 14px;
           color: var(--slate);
-          margin-bottom: 28px;
+          margin-bottom: 18px;
+        }
+
+        .cpits-confirm-actions {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 6px;
         }
 
         .cpits-link-btn {
@@ -718,6 +929,12 @@ export default function CorePointITSupport() {
           font-size: 14px;
           cursor: pointer;
           text-decoration: underline;
+        }
+
+        .cpits-link-btn-muted {
+          color: var(--slate);
+          font-weight: 500;
+          font-size: 13px;
         }
 
         .cpits-login-body {
@@ -733,7 +950,7 @@ export default function CorePointITSupport() {
           line-height: 1.5;
         }
 
-        /* Admin dashboard */
+        /* Ticket table (shared) */
         .cpits-toolbar {
           display: flex;
           align-items: center;
@@ -993,7 +1210,7 @@ export default function CorePointITSupport() {
         className={
           "cpits-shell" +
           (page === "login" ? " cpits-narrow" : "") +
-          (isAdminPage ? " cpits-wide" : "")
+          (showingWideLayout ? " cpits-wide" : "")
         }
       >
         <div className="cpits-header">
@@ -1002,7 +1219,7 @@ export default function CorePointITSupport() {
           </div>
           {page === "login" ? (
             <div />
-          ) : loggedInUser.is_it_admin ? (
+          ) : isAdminViewer ? (
             <div className="cpits-session">
               <span className="cpits-admin-badge">
                 IT Admin - {firstName(loggedInUser.full_name)}
@@ -1022,25 +1239,6 @@ export default function CorePointITSupport() {
             </div>
           )}
         </div>
-
-        {(page === "form" || page === "capture" || page === "confirmation") && (
-          <div className="cpits-steps" style={{ marginBottom: 18 }}>
-            {STEPS.map((s, i) => (
-              <React.Fragment key={s.key}>
-                <span
-                  className={
-                    "cpits-step " +
-                    (i === stepIndex ? "active" : i < stepIndex ? "done" : "")
-                  }
-                >
-                  <span className="cpits-step-dot" />
-                  {s.label}
-                </span>
-                {i < STEPS.length - 1 && <span className="cpits-chevron">›</span>}
-              </React.Fragment>
-            ))}
-          </div>
-        )}
 
         {page === "login" && (
           <form className="cpits-panel" onSubmit={handleLogin}>
@@ -1088,187 +1286,301 @@ export default function CorePointITSupport() {
           </form>
         )}
 
-        {page === "form" && (
-          <form className="cpits-panel" onSubmit={handleSubmitForm}>
-            <div className="cpits-panel-head">
-              <h1 className="cpits-title">Corepoint IT Support</h1>
-              <p className="cpits-subtitle">
-                Tell us what's going on and we'll route it to the right place.
-              </p>
+        {page === "home" && (
+          <div>
+            <div className="cpits-tabs">
+              <button
+                type="button"
+                className={"cpits-tab" + (activeUserTab === "new" ? " active" : "")}
+                onClick={() => setActiveUserTab("new")}
+              >
+                Open New Ticket
+              </button>
+              <button
+                type="button"
+                className={"cpits-tab" + (activeUserTab === "view" ? " active" : "")}
+                onClick={() => setActiveUserTab("view")}
+              >
+                View Ticket
+              </button>
             </div>
-            <div className="cpits-body">
-              <div className="cpits-grid">
-                <div>
-                  <div className="cpits-field">
-                    <label htmlFor="category">Category</label>
-                    <select
-                      id="category"
-                      className="cpits-select"
-                      value={category}
-                      onChange={(e) => handleCategoryChange(e.target.value)}
-                    >
-                      <option value="">Select a category</option>
-                      <option value="Incident">Incident</option>
-                      <option value="Request">Request</option>
-                    </select>
-                  </div>
 
-                  <div className="cpits-field">
-                    <label htmlFor="urgency">Urgency</label>
-                    <select
-                      id="urgency"
-                      className="cpits-select"
-                      value={urgency}
-                      onChange={(e) => setUrgency(e.target.value)}
-                    >
-                      <option value="">Select urgency</option>
-                      <option value="Low">Low</option>
-                      <option value="High">High</option>
-                    </select>
-                  </div>
-
-                  <div className="cpits-field">
-                    <label>User</label>
-                    <div className="cpits-static">{loggedInUser.full_name}</div>
-                  </div>
-
-                  <div className="cpits-field">
-                    <label>Assigned To</label>
-                    <div className="cpits-static">{ASSIGNED_TO}</div>
-                  </div>
+            {activeUserTab === "new" && (
+              <>
+                <div className="cpits-steps" style={{ marginBottom: 18 }}>
+                  {FLOW_STEPS.map((s, i) => (
+                    <React.Fragment key={s.key}>
+                      <span
+                        className={
+                          "cpits-step " +
+                          (i === flowStepIndex ? "active" : i < flowStepIndex ? "done" : "")
+                        }
+                      >
+                        <span className="cpits-step-dot" />
+                        {s.label}
+                      </span>
+                      {i < FLOW_STEPS.length - 1 && <span className="cpits-chevron">›</span>}
+                    </React.Fragment>
+                  ))}
                 </div>
 
-                <div>
-                  <div className="cpits-desc-label">What belongs in this category</div>
-                  <div className="cpits-desc-panel">
-                    {category
-                      ? DESCRIPTIONS[category]
-                      : "Select Incident or Request to see what belongs in that category."}
+                <form className="cpits-panel" onSubmit={handleSubmitForm}>
+                  <div className="cpits-panel-head">
+                    <h1 className="cpits-title">Corepoint IT Support</h1>
+                    <p className="cpits-subtitle">
+                      Tell us what's going on and we'll route it to the right place.
+                    </p>
                   </div>
-                </div>
-              </div>
+                  <div className="cpits-body">
+                    <div className="cpits-grid">
+                      <div>
+                        <div className="cpits-field">
+                          <label htmlFor="category">Category</label>
+                          <select
+                            id="category"
+                            className="cpits-select"
+                            value={category}
+                            onChange={(e) => handleCategoryChange(e.target.value)}
+                          >
+                            <option value="">Select a category</option>
+                            <option value="Incident">Incident</option>
+                            <option value="Request">Request</option>
+                          </select>
+                        </div>
 
-              {formError && <div className="cpits-error">{formError}</div>}
+                        <div className="cpits-field">
+                          <label htmlFor="urgency">Urgency</label>
+                          <select
+                            id="urgency"
+                            className="cpits-select"
+                            value={urgency}
+                            onChange={(e) => setUrgency(e.target.value)}
+                          >
+                            <option value="">Select urgency</option>
+                            <option value="Low">Low</option>
+                            <option value="High">High</option>
+                          </select>
+                        </div>
 
-              <div className="cpits-actions">
-                <button type="submit" className="cpits-btn" disabled={formLoading}>
-                  {formLoading ? "Submitting..." : "Submit Ticket"}
-                </button>
-              </div>
-            </div>
-          </form>
-        )}
+                        <div className="cpits-field">
+                          <label>User</label>
+                          <div className="cpits-static">{loggedInUser.full_name}</div>
+                        </div>
 
-        {page === "capture" && (
-          <form className="cpits-panel" onSubmit={handleSubmitCapture}>
-            <div className="cpits-panel-head">
-              <h1 className="cpits-title">{captureTitle}</h1>
-              <p className="cpits-subtitle">
-                <span className="cpits-ticket-number">{ticketNumber}</span>
-              </p>
-            </div>
-            <div className="cpits-body">
-              <div className="cpits-grid">
-                <div>
-                  <div className="cpits-field">
-                    <label>User</label>
-                    <div className="cpits-static">{loggedInUser.full_name}</div>
-                  </div>
+                        <div className="cpits-field">
+                          <label>Assigned To</label>
+                          <div className="cpits-static">{ASSIGNED_TO}</div>
+                        </div>
+                      </div>
 
-                  <div className="cpits-field">
-                    <label>Category</label>
-                    <div className="cpits-static">{category}</div>
-                  </div>
+                      <div>
+                        <div className="cpits-desc-label">What belongs in this category</div>
+                        <div className="cpits-desc-panel">
+                          {category
+                            ? DESCRIPTIONS[category]
+                            : "Select Incident or Request to see what belongs in that category."}
+                        </div>
+                      </div>
+                    </div>
 
-                  <div className="cpits-field">
-                    <label htmlFor="subcategory">Subcategory</label>
-                    <select
-                      id="subcategory"
-                      className="cpits-select"
-                      value={subcategory}
-                      onChange={(e) => setSubcategory(e.target.value)}
-                    >
-                      <option value="">Select a subcategory</option>
-                      {subcategoryOptions.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                    {formError && <div className="cpits-error">{formError}</div>}
 
-                  <div className="cpits-field">
-                    <label>Urgency</label>
-                    <div className="cpits-static">{urgency}</div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="cpits-field">
-                    <label>Date Opened</label>
-                    <div className="cpits-static">
-                      {dateOpened ? formatDateOpened(dateOpened) : ""}
+                    <div className="cpits-actions">
+                      <button type="submit" className="cpits-btn" disabled={formLoading}>
+                        {formLoading ? "Submitting..." : "Submit Ticket"}
+                      </button>
                     </div>
                   </div>
+                </form>
+              </>
+            )}
 
-                  <div className="cpits-field">
-                    <label>Contact Type</label>
-                    <div className="cpits-static">Email and MS Teams</div>
-                  </div>
-
-                  <div className="cpits-field">
-                    <label>Assigned To</label>
-                    <div className="cpits-static">{ASSIGNED_TO}</div>
-                  </div>
-
-                  <div className="cpits-field">
-                    <label>Ticket Status</label>
-                    <div>
-                      <span className="cpits-badge">Opened</span>
-                    </div>
-                  </div>
+            {activeUserTab === "view" && (
+              <div className="cpits-panel">
+                <div className="cpits-panel-head">
+                  <h1 className="cpits-title">Corepoint IT Service Management</h1>
+                  <p className="cpits-subtitle">Tickets you've submitted.</p>
                 </div>
-              </div>
-
-              <div className="cpits-lower">
-                <div className="cpits-field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="shortDescription">Short Description</label>
-                  <textarea
-                    id="shortDescription"
-                    className="cpits-textarea"
-                    rows={5}
-                    placeholder="Describe the issue, when it started, and anything you've already tried."
-                    value={shortDescription}
-                    onChange={(e) => setShortDescription(e.target.value)}
+                <div className="cpits-body">
+                  <TicketTable
+                    tickets={ticketList}
+                    loading={ticketListLoading}
+                    error={ticketListError}
+                    filterCategory={filterCategory}
+                    menuOpen={menuOpen}
+                    onToggleMenu={() => setMenuOpen((v) => !v)}
+                    onSelectFilter={(opt) => {
+                      setFilterCategory(opt);
+                      setPageIndex(0);
+                      setMenuOpen(false);
+                    }}
+                    pageIndex={pageIndex}
+                    totalPages={totalPages}
+                    canGoPrev={canGoPrev}
+                    canGoNext={canGoNext}
+                    onPrev={() => setPageIndex((p) => p - 1)}
+                    onNext={() => setPageIndex((p) => p + 1)}
+                    onOpenTicket={openTicket}
                   />
                 </div>
               </div>
+            )}
+          </div>
+        )}
 
-              {captureError && <div className="cpits-error">{captureError}</div>}
-
-              <div className="cpits-actions">
-                <button type="submit" className="cpits-btn" disabled={captureLoading}>
-                  {captureLoading ? "Submitting..." : "Submit Ticket"}
-                </button>
-              </div>
+        {page === "capture" && (
+          <>
+            <div className="cpits-steps" style={{ marginBottom: 18 }}>
+              {FLOW_STEPS.map((s, i) => (
+                <React.Fragment key={s.key}>
+                  <span
+                    className={
+                      "cpits-step " +
+                      (i === flowStepIndex ? "active" : i < flowStepIndex ? "done" : "")
+                    }
+                  >
+                    <span className="cpits-step-dot" />
+                    {s.label}
+                  </span>
+                  {i < FLOW_STEPS.length - 1 && <span className="cpits-chevron">›</span>}
+                </React.Fragment>
+              ))}
             </div>
-          </form>
+
+            <form className="cpits-panel" onSubmit={handleSubmitCapture}>
+              <div className="cpits-panel-head">
+                <h1 className="cpits-title">{captureTitle}</h1>
+                <p className="cpits-subtitle">
+                  <span className="cpits-ticket-number">{ticketNumber}</span>
+                </p>
+              </div>
+              <div className="cpits-body">
+                <div className="cpits-grid">
+                  <div>
+                    <div className="cpits-field">
+                      <label>User</label>
+                      <div className="cpits-static">{loggedInUser.full_name}</div>
+                    </div>
+
+                    <div className="cpits-field">
+                      <label>Category</label>
+                      <div className="cpits-static">{category}</div>
+                    </div>
+
+                    <div className="cpits-field">
+                      <label htmlFor="subcategory">Subcategory</label>
+                      <select
+                        id="subcategory"
+                        className="cpits-select"
+                        value={subcategory}
+                        onChange={(e) => setSubcategory(e.target.value)}
+                      >
+                        <option value="">Select a subcategory</option>
+                        {subcategoryOptions.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="cpits-field">
+                      <label>Urgency</label>
+                      <div className="cpits-static">{urgency}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="cpits-field">
+                      <label>Date Opened</label>
+                      <div className="cpits-static">
+                        {dateOpened ? formatDateOpened(dateOpened) : ""}
+                      </div>
+                    </div>
+
+                    <div className="cpits-field">
+                      <label>Contact Type</label>
+                      <div className="cpits-static">Email and MS Teams</div>
+                    </div>
+
+                    <div className="cpits-field">
+                      <label>Assigned To</label>
+                      <div className="cpits-static">{ASSIGNED_TO}</div>
+                    </div>
+
+                    <div className="cpits-field">
+                      <label>Ticket Status</label>
+                      <div>
+                        <span className="cpits-badge">Opened</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="cpits-lower">
+                  <div className="cpits-field" style={{ marginBottom: 0 }}>
+                    <label htmlFor="shortDescription">Short Description</label>
+                    <textarea
+                      id="shortDescription"
+                      className="cpits-textarea"
+                      rows={5}
+                      placeholder="Describe the issue, when it started, and anything you've already tried."
+                      value={shortDescription}
+                      onChange={(e) => setShortDescription(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {captureError && <div className="cpits-error">{captureError}</div>}
+
+                <div className="cpits-actions">
+                  <button type="submit" className="cpits-btn" disabled={captureLoading}>
+                    {captureLoading ? "Submitting..." : "Submit Ticket"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </>
         )}
 
         {page === "confirmation" && (
-          <div className="cpits-panel cpits-confirm">
-            <div className="cpits-check">✓</div>
-            <p className="cpits-confirm-msg">
-              Your IT Support Ticket has been submitted. Please check your
-              email and your Teams app for further assistance.
-            </p>
-            <p className="cpits-confirm-meta">
-              Ticket <span className="cpits-ticket-number">{ticketNumber}</span>
-            </p>
-            <button className="cpits-link-btn" onClick={handleStartAnother}>
-              Submit another ticket
-            </button>
-          </div>
+          <>
+            <div className="cpits-steps" style={{ marginBottom: 18 }}>
+              {FLOW_STEPS.map((s, i) => (
+                <React.Fragment key={s.key}>
+                  <span
+                    className={
+                      "cpits-step " +
+                      (i === flowStepIndex ? "active" : i < flowStepIndex ? "done" : "")
+                    }
+                  >
+                    <span className="cpits-step-dot" />
+                    {s.label}
+                  </span>
+                  {i < FLOW_STEPS.length - 1 && <span className="cpits-chevron">›</span>}
+                </React.Fragment>
+              ))}
+            </div>
+
+            <div className="cpits-panel cpits-confirm">
+              <div className="cpits-check">✓</div>
+              <p className="cpits-confirm-msg">
+                Your IT Support Ticket has been submitted. Please check your
+                email and your Teams app for further assistance.
+              </p>
+              <p className="cpits-confirm-meta">
+                Ticket <span className="cpits-ticket-number">{ticketNumber}</span>
+              </p>
+              <div className="cpits-confirm-actions">
+                <button className="cpits-link-btn" onClick={handleViewMyTickets}>
+                  View my tickets
+                </button>
+                <button className="cpits-link-btn cpits-link-btn-muted" onClick={handleStartAnother}>
+                  Submit another ticket
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         {page === "dashboard" && (
@@ -1278,139 +1590,34 @@ export default function CorePointITSupport() {
               <p className="cpits-subtitle">All tickets submitted across the team.</p>
             </div>
             <div className="cpits-body">
-              <div className="cpits-toolbar">
-                <button
-                  type="button"
-                  className="cpits-hamburger"
-                  onClick={() => setMenuOpen((v) => !v)}
-                  aria-label="Filter tickets"
-                >
-                  ☰
-                </button>
-                <span className="cpits-filter-label">
-                  Showing: <strong>{filterCategory}</strong>
-                </span>
-
-                {menuOpen && (
-                  <div className="cpits-menu">
-                    {["All", "Incident", "Request"].map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        className={
-                          "cpits-menu-item" +
-                          (filterCategory === opt ? " active" : "")
-                        }
-                        onClick={() => {
-                          setFilterCategory(opt);
-                          setPageIndex(0);
-                          setMenuOpen(false);
-                        }}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="cpits-table-wrap">
-                <table className="cpits-table">
-                  <thead>
-                    <tr>
-                      <th>Number</th>
-                      <th>Short Description</th>
-                      <th>User</th>
-                      <th>Category</th>
-                      <th>Subcategory</th>
-                      <th>Urgency</th>
-                      <th>Date Opened</th>
-                      <th>Ticket Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ticketListLoading && (
-                      <tr>
-                        <td colSpan={8} className="cpits-empty-row">
-                          Loading tickets...
-                        </td>
-                      </tr>
-                    )}
-                    {!ticketListLoading && ticketListError && (
-                      <tr>
-                        <td colSpan={8} className="cpits-empty-row">
-                          {ticketListError}
-                        </td>
-                      </tr>
-                    )}
-                    {!ticketListLoading && !ticketListError && ticketList.length === 0 && (
-                      <tr>
-                        <td colSpan={8} className="cpits-empty-row">
-                          No tickets to show.
-                        </td>
-                      </tr>
-                    )}
-                    {!ticketListLoading &&
-                      !ticketListError &&
-                      ticketList.map((t) => (
-                        <tr key={t.id}>
-                          <td>
-                            <button
-                              type="button"
-                              className="cpits-ticket-link"
-                              onClick={() => openTicket(t.id)}
-                            >
-                              {t.ticket_number}
-                            </button>
-                          </td>
-                          <td className="cpits-desc-cell">{t.short_description}</td>
-                          <td>{t.requester ? t.requester.full_name : ""}</td>
-                          <td>{t.category}</td>
-                          <td>{t.subcategory}</td>
-                          <td className={t.urgency === "High" ? "cpits-urgency-high" : "cpits-urgency-low"}>
-                            {t.urgency}
-                          </td>
-                          <td>{new Date(t.date_opened).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
-                          <td>
-                            <span className={"cpits-pill cpits-pill-" + t.status.toLowerCase()}>
-                              {t.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="cpits-pagination">
-                <span>
-                  Page {pageIndex + 1} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  className="cpits-page-btn"
-                  onClick={() => setPageIndex((p) => p - 1)}
-                  disabled={!canGoPrev}
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  className="cpits-page-btn"
-                  onClick={() => setPageIndex((p) => p + 1)}
-                  disabled={!canGoNext}
-                >
-                  ›
-                </button>
-              </div>
+              <TicketTable
+                tickets={ticketList}
+                loading={ticketListLoading}
+                error={ticketListError}
+                filterCategory={filterCategory}
+                menuOpen={menuOpen}
+                onToggleMenu={() => setMenuOpen((v) => !v)}
+                onSelectFilter={(opt) => {
+                  setFilterCategory(opt);
+                  setPageIndex(0);
+                  setMenuOpen(false);
+                }}
+                pageIndex={pageIndex}
+                totalPages={totalPages}
+                canGoPrev={canGoPrev}
+                canGoNext={canGoNext}
+                onPrev={() => setPageIndex((p) => p - 1)}
+                onNext={() => setPageIndex((p) => p + 1)}
+                onOpenTicket={openTicket}
+              />
             </div>
           </div>
         )}
 
         {page === "service" && (
           <div>
-            <button type="button" className="cpits-link-btn cpits-back-link" onClick={goToDashboard}>
-              ‹ Back to all tickets
+            <button type="button" className="cpits-link-btn cpits-back-link" onClick={goBackToList}>
+              ‹ {isAdminViewer ? "Back to all tickets" : "Back to my tickets"}
             </button>
 
             {selectedLoading && <div className="cpits-panel cpits-body">Loading ticket...</div>}
@@ -1479,20 +1686,32 @@ export default function CorePointITSupport() {
                       </div>
                       <div className="cpits-field">
                         <label>Ticket Status</label>
-                        <div className="cpits-status-row">
-                          <select
-                            className="cpits-select"
-                            value={selectedTicket.status}
-                            onChange={(e) => changeStatus(e.target.value)}
-                            disabled={statusUpdating}
-                          >
-                            {STATUS_OPTIONS.map((s) => (
-                              <option key={s} value={s}>
-                                {s}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        {isAdminViewer ? (
+                          <div className="cpits-status-row">
+                            <select
+                              className="cpits-select"
+                              value={selectedTicket.status}
+                              onChange={(e) => changeStatus(e.target.value)}
+                              disabled={statusUpdating}
+                            >
+                              {STATUS_OPTIONS.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : (
+                          <div>
+                            <span
+                              className={
+                                "cpits-pill cpits-pill-" + selectedTicket.status.toLowerCase()
+                              }
+                            >
+                              {selectedTicket.status}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1511,10 +1730,12 @@ export default function CorePointITSupport() {
 
                 <div className="cpits-body" style={{ paddingTop: 0 }}>
                   <div>
-                    <div style={{ marginBottom: 28 }}>
+                    <div style={isAdminViewer ? { marginBottom: 28 } : {}}>
                       <h2 className="cpits-notes-section-title">User Work Notes</h2>
                       <p className="cpits-notes-hint">
-                        Visible to the requester in a future phase. Timestamped on submit.
+                        {isAdminViewer
+                          ? "Visible to the requester in a future phase. Timestamped on submit."
+                          : "Notes between you and IT Admin about this ticket. Timestamped on submit."}
                       </p>
 
                       <div className="cpits-note-list">
@@ -1534,7 +1755,11 @@ export default function CorePointITSupport() {
                       <textarea
                         className="cpits-textarea"
                         rows={3}
-                        placeholder="What did you do, or what should the user try?"
+                        placeholder={
+                          isAdminViewer
+                            ? "What did you do, or what should the user try?"
+                            : "Reply with an update, or how you're following the steps."
+                        }
                         value={newUserNote}
                         onChange={(e) => setNewUserNote(e.target.value)}
                         style={{ marginBottom: 10 }}
@@ -1549,44 +1774,45 @@ export default function CorePointITSupport() {
                       </button>
                     </div>
 
-                    <div>
-                      <h2 className="cpits-notes-section-title">IT Work Notes</h2>
-                      {/* stacked below User Work Notes */}
-                      <p className="cpits-notes-hint">
-                        Admin-only. Never shown to the requester. Timestamped on save.
-                      </p>
+                    {isAdminViewer && (
+                      <div>
+                        <h2 className="cpits-notes-section-title">IT Work Notes</h2>
+                        <p className="cpits-notes-hint">
+                          Admin-only. Never shown to the requester. Timestamped on save.
+                        </p>
 
-                      <div className="cpits-note-list">
-                        {itNotes.length === 0 && (
-                          <div className="cpits-note-empty">No notes yet.</div>
-                        )}
-                        {itNotes.map((n) => (
-                          <div key={n.id} className="cpits-note-entry">
-                            <div className="cpits-note-meta">
-                              {n.author ? n.author.full_name : "IT Admin"} · {formatTimestamp(n.created_at)}
+                        <div className="cpits-note-list">
+                          {itNotes.length === 0 && (
+                            <div className="cpits-note-empty">No notes yet.</div>
+                          )}
+                          {itNotes.map((n) => (
+                            <div key={n.id} className="cpits-note-entry">
+                              <div className="cpits-note-meta">
+                                {n.author ? n.author.full_name : "IT Admin"} · {formatTimestamp(n.created_at)}
+                              </div>
+                              <div className="cpits-note-content">{n.content}</div>
                             </div>
-                            <div className="cpits-note-content">{n.content}</div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
 
-                      <textarea
-                        className="cpits-textarea"
-                        rows={3}
-                        placeholder="Personal notes on how you're working this ticket."
-                        value={newItNote}
-                        onChange={(e) => setNewItNote(e.target.value)}
-                        style={{ marginBottom: 10 }}
-                      />
-                      <button
-                        type="button"
-                        className="cpits-btn cpits-btn-secondary"
-                        onClick={saveItNote}
-                        disabled={itNoteSubmitting || !newItNote.trim()}
-                      >
-                        {itNoteSubmitting ? "Saving..." : "Save"}
-                      </button>
-                    </div>
+                        <textarea
+                          className="cpits-textarea"
+                          rows={3}
+                          placeholder="Personal notes on how you're working this ticket."
+                          value={newItNote}
+                          onChange={(e) => setNewItNote(e.target.value)}
+                          style={{ marginBottom: 10 }}
+                        />
+                        <button
+                          type="button"
+                          className="cpits-btn cpits-btn-secondary"
+                          onClick={saveItNote}
+                          disabled={itNoteSubmitting || !newItNote.trim()}
+                        >
+                          {itNoteSubmitting ? "Saving..." : "Save"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
