@@ -1510,8 +1510,8 @@ export default function CorePointITSupport() {
                 <div className="cpits-notes-divider" />
 
                 <div className="cpits-body" style={{ paddingTop: 0 }}>
-                  <div className="cpits-grid">
-                    <div>
+                  <div>
+                    <div style={{ marginBottom: 28 }}>
                       <h2 className="cpits-notes-section-title">User Work Notes</h2>
                       <p className="cpits-notes-hint">
                         Visible to the requester in a future phase. Timestamped on submit.
@@ -1551,6 +1551,7 @@ export default function CorePointITSupport() {
 
                     <div>
                       <h2 className="cpits-notes-section-title">IT Work Notes</h2>
+                      {/* stacked below User Work Notes */}
                       <p className="cpits-notes-hint">
                         Admin-only. Never shown to the requester. Timestamped on save.
                       </p>
