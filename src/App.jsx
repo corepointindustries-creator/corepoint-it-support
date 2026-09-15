@@ -203,7 +203,27 @@ export default function CorePointITSupport() {
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 
+  const [loginTab, setLoginTab] = useState("login"); // "login" | "changePassword"
+  const [cpUsername, setCpUsername] = useState("");
+  const [cpCurrentPassword, setCpCurrentPassword] = useState("");
+  const [cpNewPassword, setCpNewPassword] = useState("");
+  const [cpConfirmPassword, setCpConfirmPassword] = useState("");
+  const [cpError, setCpError] = useState("");
+  const [cpSuccess, setCpSuccess] = useState("");
+  const [cpLoading, setCpLoading] = useState(false);
+
   const [activeUserTab, setActiveUserTab] = useState("view"); // "new" | "view"
+
+  // User Management state (admin only)
+  const [userList, setUserList] = useState([]);
+  const [userListLoading, setUserListLoading] = useState(false);
+  const [userListError, setUserListError] = useState("");
+  const [resetTargetId, setResetTargetId] = useState(null);
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resetSuccess, setResetSuccess] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   const [category, setCategory] = useState("");
   const [urgency, setUrgency] = useState("");
@@ -241,7 +261,8 @@ export default function CorePointITSupport() {
   const showingTicketList =
     page === "dashboard" || (page === "home" && activeUserTab === "view");
 
-  const showingWideLayout = showingTicketList || page === "service";
+  const showingWideLayout =
+    showingTicketList || page === "service" || page === "userManagement";
 
   useEffect(() => {
     if (showingTicketList) {
@@ -249,6 +270,131 @@ export default function CorePointITSupport() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, activeUserTab, pageIndex, filterCategory]);
+
+  useEffect(() => {
+    if (page === "userManagement") {
+      fetchUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
+  async function fetchUsers() {
+    setUserListLoading(true);
+    setUserListError("");
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, auth_user_id, full_name, username, job_title, department, is_it_admin")
+      .order("full_name", { ascending: true });
+
+    if (error) {
+      setUserListError("Couldn't load users. Try refreshing.");
+      setUserListLoading(false);
+      return;
+    }
+
+    setUserList(data || []);
+    setUserListLoading(false);
+  }
+
+  async function handleChangePassword(e) {
+    e.preventDefault();
+    setCpError("");
+    setCpSuccess("");
+
+    if (!cpUsername.trim() || !cpCurrentPassword || !cpNewPassword || !cpConfirmPassword) {
+      setCpError("Fill in all fields.");
+      return;
+    }
+    if (cpNewPassword.length < 8) {
+      setCpError("New password must be at least 8 characters.");
+      return;
+    }
+    if (cpNewPassword !== cpConfirmPassword) {
+      setCpError("New passwords don't match.");
+      return;
+    }
+
+    setCpLoading(true);
+
+    const uname = cpUsername.trim().toLowerCase();
+    const { data: email, error: lookupError } = await supabase.rpc(
+      "get_email_for_username",
+      { p_username: uname }
+    );
+
+    if (lookupError || !email) {
+      setCpError("Incorrect username or current password.");
+      setCpLoading(false);
+      return;
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password: cpCurrentPassword,
+    });
+
+    if (signInError) {
+      setCpError("Incorrect username or current password.");
+      setCpLoading(false);
+      return;
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: cpNewPassword,
+    });
+
+    await supabase.auth.signOut();
+
+    if (updateError) {
+      setCpError("Couldn't update your password. Try again.");
+      setCpLoading(false);
+      return;
+    }
+
+    setCpSuccess("Password updated. You can log in with your new password now.");
+    setCpUsername("");
+    setCpCurrentPassword("");
+    setCpNewPassword("");
+    setCpConfirmPassword("");
+    setCpLoading(false);
+  }
+
+  async function handleResetPassword(targetUser) {
+    setResetError("");
+    setResetSuccess("");
+
+    if (!resetNewPassword || resetNewPassword.length < 8) {
+      setResetError("Password must be at least 8 characters.");
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      setResetError("Passwords don't match.");
+      return;
+    }
+
+    setResetLoading(true);
+
+    const { data, error } = await supabase.functions.invoke("admin-reset-password", {
+      body: {
+        target_auth_user_id: targetUser.auth_user_id,
+        new_password: resetNewPassword,
+      },
+    });
+
+    if (error || (data && data.error)) {
+      setResetError(
+        "Couldn't update the password. Make sure the admin-reset-password function is deployed."
+      );
+      setResetLoading(false);
+      return;
+    }
+
+    setResetSuccess(`Password updated for ${targetUser.full_name}.`);
+    setResetNewPassword("");
+    setResetConfirmPassword("");
+    setResetLoading(false);
+  }
 
   async function fetchTickets() {
     setTicketListLoading(true);
@@ -352,6 +498,13 @@ export default function CorePointITSupport() {
     setSelectedTicket(null);
     setMenuOpen(false);
     setActiveUserTab("view");
+    setUserList([]);
+    setResetTargetId(null);
+    setResetNewPassword("");
+    setResetConfirmPassword("");
+    setResetError("");
+    setResetSuccess("");
+    setLoginTab("login");
     setPage("login");
   }
 
@@ -811,6 +964,86 @@ export default function CorePointITSupport() {
           margin: 4px 0 14px;
         }
 
+        .cpits-success {
+          color: var(--green);
+          font-size: 13px;
+          margin: 4px 0 14px;
+        }
+
+        .cpits-admin-rail {
+          position: fixed;
+          left: max(18px, calc((100vw - 1080px) / 2 - 60px));
+          top: 130px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          z-index: 5;
+        }
+
+        @media (max-width: 1300px) {
+          .cpits-admin-rail {
+            position: static;
+            flex-direction: row;
+            margin-bottom: 18px;
+          }
+        }
+
+        .cpits-rail-icon {
+          width: 44px;
+          height: 44px;
+          border: 1px solid var(--border);
+          border-radius: 3px;
+          background: var(--panel);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: var(--slate);
+        }
+
+        .cpits-rail-icon:hover {
+          border-color: var(--blue);
+          color: var(--blue-dark);
+        }
+
+        .cpits-rail-icon.active {
+          background: var(--blue);
+          border-color: var(--blue);
+          color: #fff;
+        }
+
+        .cpits-reset-row {
+          margin-top: 10px;
+          padding: 14px;
+          background: #F1EFE8;
+          border: 1px solid var(--border);
+          border-radius: 3px;
+        }
+
+        .cpits-reset-fields {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: flex-end;
+          margin-bottom: 8px;
+        }
+
+        .cpits-reset-fields .cpits-field {
+          margin-bottom: 0;
+          flex: 1;
+          min-width: 160px;
+        }
+
+        .cpits-role-pill {
+          display: inline-block;
+          font-size: 12px;
+          font-weight: 600;
+          padding: 3px 9px;
+          border-radius: 3px;
+          background: #E7EEF7;
+          color: var(--blue-dark);
+        }
+
         .cpits-actions {
           display: flex;
           justify-content: flex-end;
@@ -1240,50 +1473,182 @@ export default function CorePointITSupport() {
           )}
         </div>
 
+        {isAdminViewer && page !== "login" && (
+          <div className="cpits-admin-rail">
+            <button
+              type="button"
+              className={
+                "cpits-rail-icon" +
+                (page === "dashboard" || page === "service" ? " active" : "")
+              }
+              title="Tickets"
+              aria-label="Tickets"
+              onClick={() => setPage("dashboard")}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="3" y="4" width="18" height="16" rx="2" />
+                <line x1="7" y1="9" x2="17" y2="9" />
+                <line x1="7" y1="13" x2="17" y2="13" />
+                <line x1="7" y1="17" x2="13" y2="17" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className={"cpits-rail-icon" + (page === "userManagement" ? " active" : "")}
+              title="User Management"
+              aria-label="User Management"
+              onClick={() => setPage("userManagement")}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="9" cy="8" r="3.2" />
+                <path d="M3.5 20c0-3.3 2.5-6 5.5-6s5.5 2.7 5.5 6" />
+                <circle cx="17.5" cy="9" r="2.4" />
+                <path d="M15.2 14.3c2.4.4 4.3 2.6 4.3 5.7" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {page === "login" && (
-          <form className="cpits-panel" onSubmit={handleLogin}>
-            <div className="cpits-panel-head">
-              <h1 className="cpits-title">Sign in</h1>
-              <p className="cpits-subtitle">Use your CorePoint IT Support account.</p>
-            </div>
-            <div className="cpits-login-body">
-              <div className="cpits-field">
-                <label htmlFor="username">Username</label>
-                <input
-                  id="username"
-                  className="cpits-input"
-                  type="text"
-                  autoComplete="username"
-                  placeholder="e.g. mgreyson"
-                  value={loginUsername}
-                  onChange={(e) => setLoginUsername(e.target.value)}
-                />
-              </div>
-              <div className="cpits-field">
-                <label htmlFor="password">Password</label>
-                <input
-                  id="password"
-                  className="cpits-input"
-                  type="password"
-                  autoComplete="current-password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                />
-              </div>
-
-              {loginError && <div className="cpits-error">{loginError}</div>}
-
-              <button type="submit" className="cpits-btn cpits-btn-full" disabled={loginLoading}>
-                {loginLoading ? "Signing in..." : "Log in"}
+          <div>
+            <div className="cpits-tabs">
+              <button
+                type="button"
+                className={"cpits-tab" + (loginTab === "login" ? " active" : "")}
+                onClick={() => {
+                  setLoginTab("login");
+                  setCpError("");
+                  setCpSuccess("");
+                }}
+              >
+                Log In
               </button>
-
-              <p className="cpits-login-note">
-                Testing build: username is your first initial plus last name
-                (e.g. Mark Greyson → mgreyson). Password for every account is
-                Test1234.
-              </p>
+              <button
+                type="button"
+                className={"cpits-tab" + (loginTab === "changePassword" ? " active" : "")}
+                onClick={() => {
+                  setLoginTab("changePassword");
+                  setLoginError("");
+                }}
+              >
+                Change Password
+              </button>
             </div>
-          </form>
+
+            {loginTab === "login" && (
+              <form className="cpits-panel" onSubmit={handleLogin}>
+                <div className="cpits-panel-head">
+                  <h1 className="cpits-title">Sign in</h1>
+                  <p className="cpits-subtitle">Use your CorePoint IT Support account.</p>
+                </div>
+                <div className="cpits-login-body">
+                  <div className="cpits-field">
+                    <label htmlFor="username">Username</label>
+                    <input
+                      id="username"
+                      className="cpits-input"
+                      type="text"
+                      autoComplete="username"
+                      placeholder="e.g. mgreyson"
+                      value={loginUsername}
+                      onChange={(e) => setLoginUsername(e.target.value)}
+                    />
+                  </div>
+                  <div className="cpits-field">
+                    <label htmlFor="password">Password</label>
+                    <input
+                      id="password"
+                      className="cpits-input"
+                      type="password"
+                      autoComplete="current-password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                    />
+                  </div>
+
+                  {loginError && <div className="cpits-error">{loginError}</div>}
+
+                  <button type="submit" className="cpits-btn cpits-btn-full" disabled={loginLoading}>
+                    {loginLoading ? "Signing in..." : "Log in"}
+                  </button>
+
+                  <p className="cpits-login-note">
+                    Username is your first initial plus last name (e.g. Mark
+                    Greyson → mgreyson).
+                  </p>
+                </div>
+              </form>
+            )}
+
+            {loginTab === "changePassword" && (
+              <form className="cpits-panel" onSubmit={handleChangePassword}>
+                <div className="cpits-panel-head">
+                  <h1 className="cpits-title">Change Password</h1>
+                  <p className="cpits-subtitle">
+                    Confirm your current password, then set a new one.
+                  </p>
+                </div>
+                <div className="cpits-login-body">
+                  <div className="cpits-field">
+                    <label htmlFor="cp-username">Username</label>
+                    <input
+                      id="cp-username"
+                      className="cpits-input"
+                      type="text"
+                      autoComplete="username"
+                      placeholder="e.g. mgreyson"
+                      value={cpUsername}
+                      onChange={(e) => setCpUsername(e.target.value)}
+                    />
+                  </div>
+                  <div className="cpits-field">
+                    <label htmlFor="cp-current">Current Password</label>
+                    <input
+                      id="cp-current"
+                      className="cpits-input"
+                      type="password"
+                      autoComplete="current-password"
+                      value={cpCurrentPassword}
+                      onChange={(e) => setCpCurrentPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className="cpits-field">
+                    <label htmlFor="cp-new">New Password</label>
+                    <input
+                      id="cp-new"
+                      className="cpits-input"
+                      type="password"
+                      autoComplete="new-password"
+                      value={cpNewPassword}
+                      onChange={(e) => setCpNewPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className="cpits-field">
+                    <label htmlFor="cp-confirm">Confirm New Password</label>
+                    <input
+                      id="cp-confirm"
+                      className="cpits-input"
+                      type="password"
+                      autoComplete="new-password"
+                      value={cpConfirmPassword}
+                      onChange={(e) => setCpConfirmPassword(e.target.value)}
+                    />
+                  </div>
+
+                  {cpError && <div className="cpits-error">{cpError}</div>}
+                  {cpSuccess && <div className="cpits-success">{cpSuccess}</div>}
+
+                  <button type="submit" className="cpits-btn cpits-btn-full" disabled={cpLoading}>
+                    {cpLoading ? "Updating..." : "Update Password"}
+                  </button>
+
+                  <p className="cpits-login-note">
+                    Passwords need to be at least 8 characters.
+                  </p>
+                </div>
+              </form>
+            )}
+          </div>
         )}
 
         {page === "home" && (
@@ -1610,6 +1975,120 @@ export default function CorePointITSupport() {
                 onNext={() => setPageIndex((p) => p + 1)}
                 onOpenTicket={openTicket}
               />
+            </div>
+          </div>
+        )}
+
+        {page === "userManagement" && (
+          <div className="cpits-panel">
+            <div className="cpits-panel-head">
+              <h1 className="cpits-title">User Management</h1>
+              <p className="cpits-subtitle">View team members and reset passwords.</p>
+            </div>
+            <div className="cpits-body">
+              <div className="cpits-table-wrap">
+                <table className="cpits-table">
+                  <thead>
+                    <tr>
+                      <th>Full Name</th>
+                      <th>Username</th>
+                      <th>Job Title</th>
+                      <th>Department</th>
+                      <th>Role</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {userListLoading && (
+                      <tr>
+                        <td colSpan={6} className="cpits-empty-row">
+                          Loading users...
+                        </td>
+                      </tr>
+                    )}
+                    {!userListLoading && userListError && (
+                      <tr>
+                        <td colSpan={6} className="cpits-empty-row">
+                          {userListError}
+                        </td>
+                      </tr>
+                    )}
+                    {!userListLoading &&
+                      !userListError &&
+                      userList.map((u) => (
+                        <React.Fragment key={u.id}>
+                          <tr>
+                            <td>{u.full_name}</td>
+                            <td style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{u.username}</td>
+                            <td>{u.job_title}</td>
+                            <td>{u.department}</td>
+                            <td>
+                              {u.is_it_admin ? (
+                                <span className="cpits-role-pill">IT Admin</span>
+                              ) : (
+                                "User"
+                              )}
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="cpits-ticket-link"
+                                onClick={() => {
+                                  const opening = resetTargetId !== u.id;
+                                  setResetTargetId(opening ? u.id : null);
+                                  setResetNewPassword("");
+                                  setResetConfirmPassword("");
+                                  setResetError("");
+                                  setResetSuccess("");
+                                }}
+                              >
+                                {resetTargetId === u.id ? "Cancel" : "Reset Password"}
+                              </button>
+                            </td>
+                          </tr>
+                          {resetTargetId === u.id && (
+                            <tr>
+                              <td colSpan={6}>
+                                <div className="cpits-reset-row">
+                                  <div className="cpits-reset-fields">
+                                    <div className="cpits-field">
+                                      <label>New Password</label>
+                                      <input
+                                        className="cpits-input"
+                                        type="password"
+                                        value={resetNewPassword}
+                                        onChange={(e) => setResetNewPassword(e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="cpits-field">
+                                      <label>Confirm New Password</label>
+                                      <input
+                                        className="cpits-input"
+                                        type="password"
+                                        value={resetConfirmPassword}
+                                        onChange={(e) => setResetConfirmPassword(e.target.value)}
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="cpits-btn"
+                                      onClick={() => handleResetPassword(u)}
+                                      disabled={resetLoading}
+                                    >
+                                      {resetLoading ? "Updating..." : "Update Password"}
+                                    </button>
+                                  </div>
+                                  {resetError && <div className="cpits-error">{resetError}</div>}
+                                  {resetSuccess && <div className="cpits-success">{resetSuccess}</div>}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
