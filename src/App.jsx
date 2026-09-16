@@ -717,27 +717,27 @@ export default function CorePointITSupport() {
   return (
     <div className="cpits-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
         .cpits-root {
-          --ink: #16233F;
-          --blue: #2C5AA0;
-          --blue-dark: #1F4380;
-          --amber: #C97A1E;
-          --green: #3A7D5C;
-          --red: #B4443A;
-          --slate: #5B6472;
-          --paper: #F5F3EE;
+          --ink: #17191D;
+          --blue: #2D6CDF;
+          --blue-dark: #1E4FB0;
+          --blue-light: #EAF1FE;
+          --amber: #D97706;
+          --amber-light: #FDF1DF;
+          --green: #16A34A;
+          --green-light: #E7F6EC;
+          --red: #DC2626;
+          --slate: #6B7280;
+          --paper: #FFFFFF;
           --panel: #FFFFFF;
-          --border: #DAD4C6;
+          --panel-gray: #F3F3F4;
+          --border: #E4E4E7;
 
-          font-family: 'IBM Plex Sans', sans-serif;
+          font-family: 'Inter', sans-serif;
           color: var(--ink);
           background-color: var(--paper);
-          background-image:
-            linear-gradient(rgba(22,35,63,0.045) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(22,35,63,0.045) 1px, transparent 1px);
-          background-size: 28px 28px;
           min-height: 100%;
           padding: 32px 20px 56px;
           box-sizing: border-box;
@@ -756,6 +756,10 @@ export default function CorePointITSupport() {
           max-width: 1080px;
         }
 
+        .cpits-shell.cpits-login {
+          max-width: 980px;
+        }
+
         .cpits-header {
           display: flex;
           align-items: baseline;
@@ -768,7 +772,7 @@ export default function CorePointITSupport() {
         }
 
         .cpits-wordmark {
-          font-family: 'Space Grotesk', sans-serif;
+          font-family: 'Poppins', sans-serif;
           font-weight: 700;
           font-size: 22px;
           letter-spacing: -0.01em;
@@ -776,6 +780,22 @@ export default function CorePointITSupport() {
 
         .cpits-wordmark span {
           color: var(--blue);
+        }
+
+        .cpits-wordmark-lg {
+          font-family: 'Poppins', sans-serif;
+          font-weight: 700;
+          font-size: 32px;
+          letter-spacing: -0.01em;
+          margin-bottom: 28px;
+        }
+
+        .cpits-wordmark-lg .cpits-wm-blue {
+          color: var(--blue);
+        }
+
+        .cpits-wordmark-lg .cpits-wm-ink {
+          color: var(--ink);
         }
 
         .cpits-steps {
@@ -806,7 +826,7 @@ export default function CorePointITSupport() {
         }
 
         .cpits-step.active .cpits-step-dot {
-          background: var(--amber);
+          background: var(--blue);
         }
 
         .cpits-step.done .cpits-step-dot {
@@ -827,10 +847,11 @@ export default function CorePointITSupport() {
 
         .cpits-session strong {
           color: var(--ink);
+          font-weight: 600;
         }
 
         .cpits-admin-badge {
-          font-family: 'Space Grotesk', sans-serif;
+          font-family: 'Poppins', sans-serif;
           font-weight: 600;
           font-size: 14px;
           color: var(--blue-dark);
@@ -844,7 +865,7 @@ export default function CorePointITSupport() {
         }
 
         .cpits-tab {
-          font-family: 'IBM Plex Sans', sans-serif;
+          font-family: 'Inter', sans-serif;
           font-size: 14px;
           font-weight: 600;
           color: var(--slate);
@@ -868,7 +889,7 @@ export default function CorePointITSupport() {
         .cpits-panel {
           background: var(--panel);
           border: 1px solid var(--border);
-          border-radius: 3px;
+          border-radius: 12px;
         }
 
         .cpits-panel-head {
@@ -877,9 +898,9 @@ export default function CorePointITSupport() {
         }
 
         .cpits-title {
-          font-family: 'Space Grotesk', sans-serif;
+          font-family: 'Poppins', sans-serif;
           font-weight: 600;
-          font-size: 24px;
+          font-size: 22px;
           margin: 0;
         }
 
@@ -917,11 +938,11 @@ export default function CorePointITSupport() {
 
         .cpits-select, .cpits-textarea, .cpits-input {
           width: 100%;
-          font-family: 'IBM Plex Sans', sans-serif;
+          font-family: 'Inter', sans-serif;
           font-size: 15px;
           padding: 10px 12px;
           border: 1px solid var(--border);
-          border-radius: 3px;
+          border-radius: 8px;
           background: var(--panel);
           color: var(--ink);
           box-sizing: border-box;
@@ -930,21 +951,22 @@ export default function CorePointITSupport() {
         .cpits-select:focus, .cpits-textarea:focus, .cpits-input:focus {
           outline: 2px solid var(--blue);
           outline-offset: 1px;
+          border-color: var(--blue);
         }
 
         .cpits-static {
           font-size: 15px;
           padding: 10px 12px;
           border: 1px solid var(--border);
-          border-radius: 3px;
-          background: #F1EFE8;
+          border-radius: 8px;
+          background: var(--panel-gray);
           color: var(--ink);
         }
 
         .cpits-desc-panel {
-          background: #EEF2F8;
-          border: 1px solid #C9D6E8;
-          border-radius: 3px;
+          background: var(--blue-light);
+          border: 1px solid #CFE0FB;
+          border-radius: 8px;
           padding: 18px;
           font-size: 14px;
           line-height: 1.55;
@@ -992,7 +1014,7 @@ export default function CorePointITSupport() {
           width: 44px;
           height: 44px;
           border: 1px solid var(--border);
-          border-radius: 3px;
+          border-radius: 10px;
           background: var(--panel);
           display: flex;
           align-items: center;
@@ -1015,9 +1037,9 @@ export default function CorePointITSupport() {
         .cpits-reset-row {
           margin-top: 10px;
           padding: 14px;
-          background: #F1EFE8;
+          background: var(--panel-gray);
           border: 1px solid var(--border);
-          border-radius: 3px;
+          border-radius: 8px;
         }
 
         .cpits-reset-fields {
@@ -1039,8 +1061,8 @@ export default function CorePointITSupport() {
           font-size: 12px;
           font-weight: 600;
           padding: 3px 9px;
-          border-radius: 3px;
-          background: #E7EEF7;
+          border-radius: 20px;
+          background: var(--blue-light);
           color: var(--blue-dark);
         }
 
@@ -1053,13 +1075,13 @@ export default function CorePointITSupport() {
         }
 
         .cpits-btn {
-          font-family: 'IBM Plex Sans', sans-serif;
+          font-family: 'Inter', sans-serif;
           font-weight: 600;
           font-size: 15px;
           background: var(--blue);
           color: #fff;
           border: none;
-          border-radius: 3px;
+          border-radius: 8px;
           padding: 11px 22px;
           cursor: pointer;
         }
@@ -1082,15 +1104,14 @@ export default function CorePointITSupport() {
         }
 
         .cpits-btn-secondary:hover {
-          background: #2E6449;
+          background: #128038;
         }
 
         .cpits-ticket-number {
-          font-family: 'IBM Plex Mono', monospace;
+          font-family: 'Poppins', sans-serif;
           font-weight: 600;
-          font-size: 20px;
+          font-size: 19px;
           color: var(--blue-dark);
-          letter-spacing: 0.02em;
         }
 
         .cpits-badge {
@@ -1098,8 +1119,8 @@ export default function CorePointITSupport() {
           font-size: 13px;
           font-weight: 600;
           padding: 4px 10px;
-          border-radius: 3px;
-          background: #E7EEF7;
+          border-radius: 20px;
+          background: var(--blue-light);
           color: var(--blue-dark);
         }
 
@@ -1161,6 +1182,10 @@ export default function CorePointITSupport() {
           font-weight: 600;
           font-size: 14px;
           cursor: pointer;
+          text-decoration: none;
+        }
+
+        .cpits-link-btn:hover {
           text-decoration: underline;
         }
 
@@ -1183,6 +1208,134 @@ export default function CorePointITSupport() {
           line-height: 1.5;
         }
 
+        /* Login page (matches the mockup) */
+        .cpits-login-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 56px;
+        }
+
+        @media (max-width: 800px) {
+          .cpits-login-grid {
+            grid-template-columns: 1fr;
+          }
+          .cpits-login-help {
+            border-left: none !important;
+            border-top: 1px solid var(--border);
+            padding-left: 0 !important;
+            padding-top: 28px;
+            margin-top: 8px;
+          }
+        }
+
+        .cpits-login-help {
+          border-left: 1px solid var(--border);
+          padding-left: 56px;
+        }
+
+        .cpits-login-headline {
+          font-family: 'Poppins', sans-serif;
+          font-weight: 700;
+          font-size: 26px;
+          margin: 18px 0 6px;
+          line-height: 1.25;
+        }
+
+        .cpits-login-sub {
+          font-size: 14.5px;
+          color: var(--slate);
+          margin: 0 0 24px;
+        }
+
+        .cpits-login-tabswitch {
+          font-size: 13.5px;
+          color: var(--slate);
+          margin-bottom: 4px;
+        }
+
+        .cpits-login-tabswitch button {
+          background: none;
+          border: none;
+          padding: 0;
+          font-size: 13.5px;
+          font-weight: 600;
+          cursor: pointer;
+          color: var(--slate);
+        }
+
+        .cpits-login-tabswitch button.active {
+          color: var(--blue);
+        }
+
+        .cpits-login-tabswitch .sep {
+          margin: 0 8px;
+          color: var(--border);
+        }
+
+        .cpits-help-panel {
+          background: var(--panel-gray);
+          border-radius: 12px;
+          padding: 28px;
+        }
+
+        .cpits-help-title {
+          font-family: 'Poppins', sans-serif;
+          font-weight: 600;
+          font-size: 18px;
+          margin: 0 0 22px;
+        }
+
+        .cpits-help-steps {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .cpits-help-step {
+          display: flex;
+          align-items: flex-start;
+          gap: 16px;
+        }
+
+        .cpits-help-dot-col {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .cpits-help-dot {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          border: 2px solid var(--border);
+          background: #fff;
+          flex-shrink: 0;
+        }
+
+        .cpits-help-dot.current {
+          width: 22px;
+          height: 22px;
+          border: 4px solid var(--blue);
+          background: #fff;
+        }
+
+        .cpits-help-line {
+          width: 2px;
+          flex: 1;
+          background: var(--border);
+          min-height: 30px;
+        }
+
+        .cpits-help-step-label {
+          font-size: 14.5px;
+          color: var(--ink);
+          padding-bottom: 28px;
+          padding-top: 2px;
+        }
+
+        .cpits-help-step:last-child .cpits-help-step-label {
+          padding-bottom: 0;
+        }
+
         /* Ticket table (shared) */
         .cpits-toolbar {
           display: flex;
@@ -1196,7 +1349,7 @@ export default function CorePointITSupport() {
           width: 36px;
           height: 36px;
           border: 1px solid var(--border);
-          border-radius: 3px;
+          border-radius: 8px;
           background: var(--panel);
           display: flex;
           align-items: center;
@@ -1225,8 +1378,8 @@ export default function CorePointITSupport() {
           left: 0;
           background: var(--panel);
           border: 1px solid var(--border);
-          border-radius: 3px;
-          box-shadow: 0 6px 16px rgba(22,35,63,0.12);
+          border-radius: 10px;
+          box-shadow: 0 10px 24px rgba(23,25,29,0.12);
           z-index: 10;
           min-width: 160px;
           overflow: hidden;
@@ -1245,7 +1398,7 @@ export default function CorePointITSupport() {
         }
 
         .cpits-menu-item:hover {
-          background: #EEF2F8;
+          background: var(--blue-light);
         }
 
         .cpits-menu-item.active {
@@ -1256,7 +1409,7 @@ export default function CorePointITSupport() {
         .cpits-table-wrap {
           overflow-x: auto;
           border: 1px solid var(--border);
-          border-radius: 3px;
+          border-radius: 10px;
         }
 
         .cpits-table {
@@ -1271,7 +1424,7 @@ export default function CorePointITSupport() {
           font-weight: 600;
           color: var(--slate);
           padding: 10px 14px;
-          background: #F1EFE8;
+          background: var(--panel-gray);
           border-bottom: 1px solid var(--border);
           white-space: nowrap;
         }
@@ -1287,7 +1440,7 @@ export default function CorePointITSupport() {
         }
 
         .cpits-table tr:hover td {
-          background: #FBFAF7;
+          background: #FAFAFB;
         }
 
         .cpits-desc-cell {
@@ -1295,19 +1448,20 @@ export default function CorePointITSupport() {
         }
 
         .cpits-ticket-link {
-          font-family: 'IBM Plex Mono', monospace;
+          font-family: 'Inter', sans-serif;
           font-weight: 600;
           font-size: 13.5px;
           color: var(--blue);
           background: none;
           border: none;
           cursor: pointer;
-          text-decoration: underline;
+          text-decoration: none;
           padding: 0;
         }
 
         .cpits-ticket-link:hover {
           color: var(--blue-dark);
+          text-decoration: underline;
         }
 
         .cpits-pill {
@@ -1315,13 +1469,13 @@ export default function CorePointITSupport() {
           font-size: 12px;
           font-weight: 600;
           padding: 3px 9px;
-          border-radius: 3px;
+          border-radius: 20px;
           white-space: nowrap;
         }
 
-        .cpits-pill-opened { background: #E7EEF7; color: var(--blue-dark); }
-        .cpits-pill-active { background: #FBEEDC; color: var(--amber); }
-        .cpits-pill-resolved { background: #E4EFE9; color: var(--green); }
+        .cpits-pill-opened { background: var(--blue-light); color: var(--blue-dark); }
+        .cpits-pill-active { background: var(--amber-light); color: var(--amber); }
+        .cpits-pill-resolved { background: var(--green-light); color: var(--green); }
 
         .cpits-urgency-high {
           color: var(--amber);
@@ -1353,7 +1507,7 @@ export default function CorePointITSupport() {
           width: 30px;
           height: 30px;
           border: 1px solid var(--border);
-          border-radius: 3px;
+          border-radius: 8px;
           background: var(--panel);
           cursor: pointer;
           font-size: 14px;
@@ -1388,11 +1542,11 @@ export default function CorePointITSupport() {
 
         .cpits-notes-divider {
           margin: 8px -28px 24px;
-          border-top: 2px dashed var(--border);
+          border-top: 1px dashed var(--border);
         }
 
         .cpits-notes-section-title {
-          font-family: 'Space Grotesk', sans-serif;
+          font-family: 'Poppins', sans-serif;
           font-weight: 600;
           font-size: 15px;
           margin: 0 0 4px;
@@ -1442,36 +1596,36 @@ export default function CorePointITSupport() {
       <div
         className={
           "cpits-shell" +
-          (page === "login" ? " cpits-narrow" : "") +
+          (page === "login" ? " cpits-login" : "") +
           (showingWideLayout ? " cpits-wide" : "")
         }
       >
-        <div className="cpits-header">
-          <div className="cpits-wordmark">
-            CorePoint <span>IT Support</span>
+        {page !== "login" && (
+          <div className="cpits-header">
+            <div className="cpits-wordmark">
+              CorePoint <span>IT Support</span>
+            </div>
+            {isAdminViewer ? (
+              <div className="cpits-session">
+                <span className="cpits-admin-badge">
+                  IT Admin - {firstName(loggedInUser.full_name)}
+                </span>
+                <button className="cpits-link-btn" onClick={handleLogout} type="button">
+                  Log out
+                </button>
+              </div>
+            ) : (
+              <div className="cpits-session">
+                <span>
+                  Signed in as <strong>{loggedInUser.full_name}</strong>
+                </span>
+                <button className="cpits-link-btn" onClick={handleLogout} type="button">
+                  Log out
+                </button>
+              </div>
+            )}
           </div>
-          {page === "login" ? (
-            <div />
-          ) : isAdminViewer ? (
-            <div className="cpits-session">
-              <span className="cpits-admin-badge">
-                IT Admin - {firstName(loggedInUser.full_name)}
-              </span>
-              <button className="cpits-link-btn" onClick={handleLogout} type="button">
-                Log out
-              </button>
-            </div>
-          ) : (
-            <div className="cpits-session">
-              <span>
-                Signed in as <strong>{loggedInUser.full_name}</strong>
-              </span>
-              <button className="cpits-link-btn" onClick={handleLogout} type="button">
-                Log out
-              </button>
-            </div>
-          )}
-        </div>
+        )}
 
         {isAdminViewer && page !== "login" && (
           <div className="cpits-admin-rail">
@@ -1510,38 +1664,43 @@ export default function CorePointITSupport() {
         )}
 
         {page === "login" && (
-          <div>
-            <div className="cpits-tabs">
-              <button
-                type="button"
-                className={"cpits-tab" + (loginTab === "login" ? " active" : "")}
-                onClick={() => {
-                  setLoginTab("login");
-                  setCpError("");
-                  setCpSuccess("");
-                }}
-              >
-                Log In
-              </button>
-              <button
-                type="button"
-                className={"cpits-tab" + (loginTab === "changePassword" ? " active" : "")}
-                onClick={() => {
-                  setLoginTab("changePassword");
-                  setLoginError("");
-                }}
-              >
-                Change Password
-              </button>
-            </div>
+          <div className="cpits-login-grid">
+            <div>
+              <div className="cpits-wordmark-lg">
+                <span className="cpits-wm-blue">CorePoint</span>{" "}
+                <span className="cpits-wm-ink">IT Support</span>
+              </div>
 
-            {loginTab === "login" && (
-              <form className="cpits-panel" onSubmit={handleLogin}>
-                <div className="cpits-panel-head">
-                  <h1 className="cpits-title">Sign in</h1>
-                  <p className="cpits-subtitle">Use your CorePoint IT Support account.</p>
-                </div>
-                <div className="cpits-login-body">
+              <div className="cpits-login-tabswitch">
+                <button
+                  type="button"
+                  className={loginTab === "login" ? "active" : ""}
+                  onClick={() => {
+                    setLoginTab("login");
+                    setCpError("");
+                    setCpSuccess("");
+                  }}
+                >
+                  Log In
+                </button>
+                <span className="sep">·</span>
+                <button
+                  type="button"
+                  className={loginTab === "changePassword" ? "active" : ""}
+                  onClick={() => {
+                    setLoginTab("changePassword");
+                    setLoginError("");
+                  }}
+                >
+                  Change Password
+                </button>
+              </div>
+
+              {loginTab === "login" && (
+                <form onSubmit={handleLogin}>
+                  <h1 className="cpits-login-headline">Log in to contact a support agent</h1>
+                  <p className="cpits-login-sub">Sign in to your account.</p>
+
                   <div className="cpits-field">
                     <label htmlFor="username">Username</label>
                     <input
@@ -1576,19 +1735,16 @@ export default function CorePointITSupport() {
                     Username is your first initial plus last name (e.g. Mark
                     Greyson → mgreyson).
                   </p>
-                </div>
-              </form>
-            )}
+                </form>
+              )}
 
-            {loginTab === "changePassword" && (
-              <form className="cpits-panel" onSubmit={handleChangePassword}>
-                <div className="cpits-panel-head">
-                  <h1 className="cpits-title">Change Password</h1>
-                  <p className="cpits-subtitle">
+              {loginTab === "changePassword" && (
+                <form onSubmit={handleChangePassword}>
+                  <h1 className="cpits-login-headline">Change your password</h1>
+                  <p className="cpits-login-sub">
                     Confirm your current password, then set a new one.
                   </p>
-                </div>
-                <div className="cpits-login-body">
+
                   <div className="cpits-field">
                     <label htmlFor="cp-username">Username</label>
                     <input
@@ -1645,9 +1801,31 @@ export default function CorePointITSupport() {
                   <p className="cpits-login-note">
                     Passwords need to be at least 8 characters.
                   </p>
+                </form>
+              )}
+            </div>
+
+            <div className="cpits-login-help">
+              <div className="cpits-help-panel">
+                <h2 className="cpits-help-title">Get help in 4 easy steps</h2>
+                <div className="cpits-help-steps">
+                  {[
+                    "Log in",
+                    "Open New Ticket or View Ticket",
+                    "Describe the issue",
+                    "Submit",
+                  ].map((label, i, arr) => (
+                    <div className="cpits-help-step" key={label}>
+                      <div className="cpits-help-dot-col">
+                        <div className={"cpits-help-dot" + (i === 0 ? " current" : "")} />
+                        {i < arr.length - 1 && <div className="cpits-help-line" />}
+                      </div>
+                      <div className="cpits-help-step-label">{label}</div>
+                    </div>
+                  ))}
                 </div>
-              </form>
-            )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -2019,7 +2197,7 @@ export default function CorePointITSupport() {
                         <React.Fragment key={u.id}>
                           <tr>
                             <td>{u.full_name}</td>
-                            <td style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{u.username}</td>
+                            <td style={{ fontWeight: 500 }}>{u.username}</td>
                             <td>{u.job_title}</td>
                             <td>{u.department}</td>
                             <td>
